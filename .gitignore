@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data (add exceptions below if you want small data files tracked)
+*.edf
+*.fif
+*.set
+*.cnt
+*.bdf
+data/
+
+# OS
+.DS_Store
+Thumbs.db
