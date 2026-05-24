@@ -21,7 +21,7 @@ from brainflow.data_filter import DataFilter
 
 # ── constants ────────────────────────────────────────────────────────────────
 SRATE = 250          # Cyton sampling rate (Hz)
-N_TRIALS = 40        # trials per session (20 left, 20 right)
+N_TRIALS = 6         # trials per session (20 left, 20 right)
 FIXATION_S = 2.0     # fixation cross duration (s)
 CUE_S = 0.5          # cue display duration (s)
 IMAGERY_S = 4.0      # motor imagery window (s)
@@ -133,7 +133,7 @@ def collect_session(board: BoardShim, eeg_channels: list[int], labels: list[int]
         raw = board.get_board_data()          # shape: (n_channels, n_samples)
         eeg = raw[eeg_channels, :]            # shape: (8, n_samples)
 
-        start = int(EPOCH_START_S * SRATE)
+        start = int((FIXATION_S + EPOCH_START_S) * SRATE)
         end = start + EPOCH_SAMPLES
 
         if eeg.shape[1] >= end:
