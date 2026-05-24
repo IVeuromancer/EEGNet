@@ -52,13 +52,25 @@ def make_board(board_type: str, port: str) -> tuple[BoardShim, int, list[int]]:
     else:
         board_id = BoardIds.SYNTHETIC_BOARD
 
-    BoardShim.enable_dev_board_logger()
     board = BoardShim(board_id, params)
     eeg_channels = BoardShim.get_eeg_channels(board_id)
     return board, board_id, eeg_channels
 
 
 # ── pygame cue display ────────────────────────────────────────────────────────
+def pygame_sleep(seconds: float):
+    """Sleep while keeping the pygame event loop alive."""
+    end = time.time() + seconds
+    while time.time() < end:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or (
+                event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
+            ):
+                pygame.quit()
+                raise SystemExit("Session aborted by user.")
+        pygame.time.wait(16)  # ~60fps tick
+
+
 def draw_fixation(screen, font):
     screen.fill(COLORS["bg"])
     text = font.render("+", True, COLORS["white"])
@@ -101,30 +113,21 @@ def collect_session(board: BoardShim, eeg_channels: list[int], labels: list[int]
     valid_labels = []
 
     board.start_stream()
-    time.sleep(2)  # let buffer fill
+    pygame_sleep(2)  # let buffer fill
 
     for i, label in enumerate(labels):
-        # pump pygame events to keep window responsive
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT or (
-                event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
-            ):
-                board.stop_stream()
-                pygame.quit()
-                raise SystemExit("Session aborted by user.")
-
         # fixation
         draw_fixation(screen, font)
         board.get_board_data()  # flush buffer before trial
-        time.sleep(FIXATION_S)
+        pygame_sleep(FIXATION_S)
 
         # cue + record onset timestamp
         draw_cue(screen, font, label)
         cue_time = time.time()
-        time.sleep(CUE_S)
+        pygame_sleep(CUE_S)
 
         # imagery window — keep recording
-        time.sleep(IMAGERY_S)
+        pygame_sleep(IMAGERY_S)
 
         # grab all data since flush and extract epoch
         raw = board.get_board_data()          # shape: (n_channels, n_samples)
@@ -142,7 +145,7 @@ def collect_session(board: BoardShim, eeg_channels: list[int], labels: list[int]
 
         # inter-trial interval
         draw_rest(screen, font, i + 1, len(labels))
-        time.sleep(ITI_S)
+        pygame_sleep(ITI_S)
 
     board.stop_stream()
 
@@ -200,11 +203,16 @@ def main():
 
     try:
         X, y = collect_session(board, eeg_channels, labels, screen, font)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        input("Press Enter to close...")
+        return
     finally:
         board.release_session()
 
     draw_done(screen, font)
-    pygame.time.wait(2000)
+    pygame_sleep(2)
     pygame.quit()
 
     # save
