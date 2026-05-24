@@ -107,6 +107,12 @@ def draw_done(screen, font):
 
 
 # ── data collection ───────────────────────────────────────────────────────────
+# Sample indices from the per-trial flush point (constants)
+_EPOCH_START_SAMP = int((FIXATION_S + EPOCH_START_S) * SRATE)   # 625
+_EPOCH_END_SAMP   = _EPOCH_START_SAMP + EPOCH_SAMPLES            # 1625
+_GRACE_S          = 0.15   # extra wait if timing jitter leaves us short
+
+
 def collect_session(board: BoardShim, eeg_channels: list[int], labels: list[int],
                     screen, font) -> tuple[np.ndarray, np.ndarray]:
     epochs = []
@@ -121,27 +127,29 @@ def collect_session(board: BoardShim, eeg_channels: list[int], labels: list[int]
         board.get_board_data()  # flush buffer before trial
         pygame_sleep(FIXATION_S)
 
-        # cue + record onset timestamp
+        # cue
         draw_cue(screen, font, label)
-        cue_time = time.time()
         pygame_sleep(CUE_S)
 
-        # imagery window — keep recording
+        # imagery window
         pygame_sleep(IMAGERY_S)
 
-        # grab all data since flush and extract epoch
-        raw = board.get_board_data()          # shape: (n_channels, n_samples)
-        eeg = raw[eeg_channels, :]            # shape: (8, n_samples)
+        # grab data; pygame_sleep jitter can leave us a few samples short,
+        # so retry once with a short grace period before giving up
+        raw = board.get_board_data()
+        eeg = raw[eeg_channels, :]
 
-        start = int((FIXATION_S + EPOCH_START_S) * SRATE)
-        end = start + EPOCH_SAMPLES
+        if eeg.shape[1] < _EPOCH_END_SAMP:
+            pygame_sleep(_GRACE_S)
+            extra = board.get_board_data()
+            eeg = np.concatenate([eeg, extra[eeg_channels, :]], axis=1)
 
-        if eeg.shape[1] >= end:
-            epoch = eeg[:, start:end]         # shape: (8, 1000)
+        if eeg.shape[1] >= _EPOCH_END_SAMP:
+            epoch = eeg[:, _EPOCH_START_SAMP:_EPOCH_END_SAMP]   # (8, 1000)
             epochs.append(epoch)
             valid_labels.append(label)
         else:
-            print(f"  Trial {i+1}: insufficient samples ({eeg.shape[1]}), skipping.")
+            print(f"  Trial {i+1}: only {eeg.shape[1]}/{_EPOCH_END_SAMP} samples — skipping.")
 
         # inter-trial interval
         draw_rest(screen, font, i + 1, len(labels))
@@ -149,8 +157,8 @@ def collect_session(board: BoardShim, eeg_channels: list[int], labels: list[int]
 
     board.stop_stream()
 
-    X = np.stack(epochs, axis=0)              # (n_trials, 8, 1000)
-    y = np.array(valid_labels)                # (n_trials,)
+    X = np.stack(epochs, axis=0)   # (n_trials, 8, 1000)
+    y = np.array(valid_labels)
     return X, y
 
 
