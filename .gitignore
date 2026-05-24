@@ -20,6 +20,13 @@ env/
 *.bdf
 data/
 
+# MLflow
+mlflow.db
+mlruns/
+
+# VS Code
+.vscode/settings.json
+
 # OS
 .DS_Store
 Thumbs.db
