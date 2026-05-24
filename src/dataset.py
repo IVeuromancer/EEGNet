@@ -40,6 +40,41 @@ class EEGDataset(Dataset):
         return torch.roll(x, shift, dims=-1)
 
 
+def make_splits(X: np.ndarray, y: np.ndarray, channels=None,
+                train_ratio: float = 0.70, dev_ratio: float = 0.15, seed: int = 42):
+    """Stratified train/dev/test split over all trials.
+
+    Args:
+        channels: list of 0-indexed channel indices to select, or None for all
+        train_ratio, dev_ratio: fractions; test gets the remainder
+    """
+    from sklearn.model_selection import train_test_split
+    from src.preprocess import ChannelStandardizer
+
+    if channels is not None:
+        X = X[:, channels, :]
+
+    test_ratio = 1.0 - train_ratio - dev_ratio
+    X_tr, X_tmp, y_tr, y_tmp = train_test_split(
+        X, y, test_size=(1.0 - train_ratio), stratify=y, random_state=seed
+    )
+    dev_of_tmp = dev_ratio / (dev_ratio + test_ratio)
+    X_dev, X_test, y_dev, y_test = train_test_split(
+        X_tmp, y_tmp, test_size=(1.0 - dev_of_tmp), stratify=y_tmp, random_state=seed
+    )
+
+    standardizer = ChannelStandardizer()
+    X_tr = standardizer.fit_transform(X_tr)
+    X_dev = standardizer.transform(X_dev)
+    X_test = standardizer.transform(X_test)
+
+    train_ds = EEGDataset(X_tr.astype(np.float32), y_tr.astype(np.int64), augment=True)
+    dev_ds   = EEGDataset(X_dev.astype(np.float32), y_dev.astype(np.int64), augment=False)
+    test_ds  = EEGDataset(X_test.astype(np.float32), y_test.astype(np.int64), augment=False)
+
+    return train_ds, dev_ds, test_ds, standardizer
+
+
 def make_loso_splits(X: np.ndarray, y: np.ndarray, sessions: np.ndarray,
                      test_session: int, standardizer=None):
     """Leave-one-session-out split.

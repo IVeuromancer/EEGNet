@@ -11,6 +11,9 @@ Usage:
     python src/preprocess.py
 """
 
+import hashlib
+import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -109,6 +112,15 @@ class ChannelStandardizer:
         return s
 
 
+# ── helpers ───────────────────────────────────────────────────────────────────
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 # ── per-epoch pipeline ────────────────────────────────────────────────────────
 def preprocess_epoch(eeg: np.ndarray) -> np.ndarray:
     """Apply filtering and baseline correction to a single epoch.
@@ -135,11 +147,14 @@ def preprocess_dataset(raw_dir: str = "data/raw",
         raise FileNotFoundError(f"No session files found in {raw_dir}")
 
     all_X, all_y, all_sessions = [], [], []
+    session_records = []
 
     for i, fp in enumerate(session_files):
         data = np.load(fp)
         X, y = data["eeg"], data["labels"]   # (n_trials, 8, 1000), (n_trials,)
-        print(f"  Session {i+1}: {fp.name}  — {len(y)} trials")
+        X = X * 1e-3   # BrainFlow returns nV; convert to µV for thresholds and model
+        n_raw = len(y)
+        print(f"  Session {i+1}: {fp.name}  — {n_raw} trials")
 
         # filter and baseline correct each trial
         X_proc = np.stack([preprocess_epoch(X[t]) for t in range(len(X))], axis=0)
@@ -150,6 +165,12 @@ def preprocess_dataset(raw_dir: str = "data/raw",
         all_X.append(X_proc)
         all_y.append(y)
         all_sessions.extend([i] * len(y))
+        session_records.append({
+            "filename": fp.name,
+            "sha256": _sha256_file(fp),
+            "n_trials_raw": n_raw,
+            "n_trials_kept": int(len(y)),
+        })
 
     X = np.concatenate(all_X, axis=0).astype(np.float32)
     y = np.concatenate(all_y, axis=0).astype(np.int64)
@@ -167,6 +188,18 @@ def preprocess_dataset(raw_dir: str = "data/raw",
     standardizer.save(stats_path)
     print(f"Saved to {out_path}")
     print(f"Standardizer saved to {stats_path}")
+
+    manifest = {
+        "preprocessed_at": datetime.now(timezone.utc).isoformat(),
+        "dataset_sha256": _sha256_file(Path(out_path)),
+        "total_trials": int(len(y)),
+        "label_counts": {str(k): int(v) for k, v in zip(*np.unique(y, return_counts=True))},
+        "sessions": session_records,
+    }
+    manifest_path = Path(out_path).with_name("dataset_manifest.json")
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+    print(f"Manifest saved to {manifest_path}")
 
 
 if __name__ == "__main__":
