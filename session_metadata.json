@@ -15,6 +15,16 @@
     "montage": "default_8ch",
     "notes": "Standard OpenBCI default 8-channel configuration"
   },
+  "session_2026-05-24_23-09.npz": {
+    "montage": "motor_frontal",
+    "notes": "CH5 and CH6 moved to F3 and F4 (frontal); CH3 and CH4 remain at C3 and C4 (motor cortex)",
+    "channel_locations": {
+      "CH3": "C3",
+      "CH4": "C4",
+      "CH5": "F3",
+      "CH6": "F4"
+    }
+  },
   "session_2026-05-24_22-57.npz": {
     "montage": "motor_frontal",
     "notes": "CH5 and CH6 moved to F3 and F4 (frontal); CH3 and CH4 remain at C3 and C4 (motor cortex)",
