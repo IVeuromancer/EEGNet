@@ -146,6 +146,13 @@ def preprocess_dataset(raw_dir: str = "data/raw",
     if not session_files:
         raise FileNotFoundError(f"No session files found in {raw_dir}")
 
+    # load per-session electrode metadata if present
+    meta_path = Path("session_metadata.json")
+    session_meta = {}
+    if meta_path.exists():
+        with open(meta_path) as f:
+            session_meta = json.load(f)
+
     all_X, all_y, all_sessions = [], [], []
     session_records = []
 
@@ -165,12 +172,15 @@ def preprocess_dataset(raw_dir: str = "data/raw",
         all_X.append(X_proc)
         all_y.append(y)
         all_sessions.extend([i] * len(y))
-        session_records.append({
+        record = {
             "filename": fp.name,
             "sha256": _sha256_file(fp),
             "n_trials_raw": n_raw,
             "n_trials_kept": int(len(y)),
-        })
+        }
+        if fp.name in session_meta:
+            record.update(session_meta[fp.name])
+        session_records.append(record)
 
     X = np.concatenate(all_X, axis=0).astype(np.float32)
     y = np.concatenate(all_y, axis=0).astype(np.int64)
