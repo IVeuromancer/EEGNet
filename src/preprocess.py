@@ -189,15 +189,22 @@ def preprocess_dataset(raw_dir: str = "data/raw",
     print(f"\nTotal: {len(y)} trials | Left: {(y==0).sum()} | Right: {(y==1).sum()}")
     print(f"Shape: {X.shape}")
 
-    # fit standardizer on all data (caller should fit only on train split for CV)
-    standardizer = ChannelStandardizer()
-    standardizer.fit(X)
-
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     np.savez(out_path, X=X, y=y, sessions=sessions)
+
+    # full 8-channel standardizer (used by LOSO / dataset-level ops)
+    standardizer = ChannelStandardizer()
+    standardizer.fit(X)
     standardizer.save(stats_path)
     print(f"Saved to {out_path}")
     print(f"Standardizer saved to {stats_path}")
+
+    # 2-channel standardizer for realtime inference (CH3+CH4 only)
+    rt_stats_path = Path(stats_path).with_name("standardizer_realtime.npz")
+    rt_standardizer = ChannelStandardizer()
+    rt_standardizer.fit(X[:, [2, 3], :])
+    rt_standardizer.save(str(rt_stats_path))
+    print(f"Realtime standardizer saved to {rt_stats_path}")
 
     manifest = {
         "preprocessed_at": datetime.now(timezone.utc).isoformat(),

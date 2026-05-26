@@ -181,7 +181,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--demo", action="store_true", help="Keyboard control mode")
     parser.add_argument("--model", default="models/best_eegnet.pt")
-    parser.add_argument("--stats", default="data/processed/standardizer.npz")
+    parser.add_argument("--stats", default="data/processed/standardizer_realtime.npz")
     parser.add_argument("--board", default="synthetic", choices=["cyton", "synthetic"])
     parser.add_argument("--port", default="COM3")
     args = parser.parse_args()

@@ -37,6 +37,8 @@ LABEL_NONE = -1
 
 DEVICE = torch.device("cpu")   # keep inference on CPU for real-time latency
 
+MODEL_CHANNELS = [2, 3]   # CH3 (C4) and CH4 (C3) — indices into eeg_channels
+
 
 # ── acquisition thread ────────────────────────────────────────────────────────
 def acquisition_thread(board: BoardShim, eeg_channels: list[int],
@@ -54,13 +56,14 @@ def acquisition_thread(board: BoardShim, eeg_channels: list[int],
             time.sleep(0.02)
             continue
 
-        eeg = data[eeg_channels, :]     # (8, n_new)
+        eeg = data[eeg_channels, :]                  # (8, n_new)
+        eeg = eeg[MODEL_CHANNELS, :]                 # (2, n_new) — CH3+CH4 only
         for i in range(eeg.shape[1]):
             ring.append(eeg[:, i])      # append column vectors
         samples_since_last += eeg.shape[1]
 
         if samples_since_last >= STRIDE_SAMPLES and len(ring) == WINDOW_SAMPLES:
-            window = np.stack(list(ring), axis=1).astype(np.float32)  # (8, 1000)
+            window = np.stack(list(ring), axis=1).astype(np.float32)  # (2, 1000)
             try:
                 raw_queue.put_nowait(window)
             except queue.Full:
@@ -83,9 +86,10 @@ def preprocess_thread(raw_queue: queue.Queue, proc_queue: queue.Queue,
         except queue.Empty:
             continue
 
+        window = window * 1e-3   # BrainFlow nV → µV
         window = bandpass_filter(window, 8.0, 30.0, SRATE)
         window = baseline_correct(window)
-        window = standardizer.transform(window[np.newaxis])[0]   # z-score
+        window = standardizer.transform(window[np.newaxis])[0]   # z-score (1, 2, 1000)
 
         try:
             proc_queue.put_nowait(window)
@@ -108,7 +112,7 @@ def inference_thread(model: torch.nn.Module, proc_queue: queue.Queue,
             except queue.Empty:
                 continue
 
-            x = torch.from_numpy(window).unsqueeze(0).to(DEVICE)   # (1, 8, 1000)
+            x = torch.from_numpy(window).unsqueeze(0).to(DEVICE, dtype=torch.float32)   # (1, 2, 1000)
             logits = model(x)
             probs = torch.softmax(logits, dim=1).squeeze(0).cpu().numpy()   # (2,)
 
@@ -158,9 +162,9 @@ def decision_thread(pred_queue: queue.Queue, action_queue: queue.Queue,
 def build_pipeline(model_path: str, standardizer_path: str,
                    board_type: str, port: str):
     # load model
-    model = build_model("eegnet", n_channels=8, n_samples=1000, n_classes=2)
+    model = build_model("eegnet", n_channels=len(MODEL_CHANNELS), n_samples=1000, n_classes=2)
     model.load_state_dict(torch.load(model_path, map_location=DEVICE))
-    model.to(DEVICE)
+    model.to(DEVICE).float()
 
     # load standardizer
     standardizer = ChannelStandardizer.load(standardizer_path)
@@ -208,7 +212,7 @@ def run_pipeline(model, standardizer, board, eeg_channels) -> queue.Queue:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="models/best_eegnet.pt")
-    parser.add_argument("--stats", default="data/processed/standardizer.npz")
+    parser.add_argument("--stats", default="data/processed/standardizer_realtime.npz")
     parser.add_argument("--board", default="synthetic", choices=["cyton", "synthetic"])
     parser.add_argument("--port", default="COM3")
     args = parser.parse_args()
