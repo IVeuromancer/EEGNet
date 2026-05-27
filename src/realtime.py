@@ -29,7 +29,7 @@ SRATE = 250
 WINDOW_SAMPLES = 1000     # 4s window
 STRIDE_SAMPLES = 125      # 0.5s stride → new prediction every 500ms
 SMOOTH_N = 5              # majority vote over last N predictions
-CONFIDENCE_THRESH = 0.65  # only act if max softmax > threshold
+CONFIDENCE_THRESH = 0.55  # only act if max softmax > threshold
 
 LABEL_LEFT = 0
 LABEL_RIGHT = 1

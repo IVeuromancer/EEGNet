@@ -20,6 +20,9 @@ env/
 *.bdf
 data/
 
+# Models
+models/
+
 # MLflow
 mlflow.db
 mlruns/
