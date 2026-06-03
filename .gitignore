@@ -27,6 +27,9 @@ models/
 mlflow.db
 mlruns/
 
+# Claude Code
+CLAUDE.md
+
 # VS Code
 .vscode/settings.json
 
