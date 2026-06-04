@@ -1,5 +1,6 @@
 ```
-                                                                                                    
+ASCII art of me wearing the EEG headset
+
                                                   ###                                               
                                                 %%#%%%%%                                            
                                            -==*-#@@@@@@@                                            
