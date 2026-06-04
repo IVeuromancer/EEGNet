@@ -13,6 +13,7 @@ env/
 .ipynb_checkpoints/
 
 # Data (add exceptions below if you want small data files tracked)
+session_metadata.json
 *.edf
 *.fif
 *.set
