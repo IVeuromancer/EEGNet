@@ -30,6 +30,7 @@ mlruns/
 
 # Claude Code
 CLAUDE.md
+.claude/
 
 # VS Code
 .vscode/settings.json
