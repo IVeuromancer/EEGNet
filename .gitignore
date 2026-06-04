@@ -11,6 +11,7 @@ env/
 
 # Jupyter
 .ipynb_checkpoints/
+notebooks/trial_browser.ipynb
 
 # Data (add exceptions below if you want small data files tracked)
 session_metadata.json
