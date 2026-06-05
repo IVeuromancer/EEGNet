@@ -93,18 +93,18 @@ pip install brainflow mne scipy pygame torch mlflow scikit-learn numpy matplotli
 
 ```
 src/
-  collect_data.py   — BrainFlow session recorder with pygame arrow cues
-  preprocess.py     — 8–30Hz bandpass, baseline correction, artifact rejection, z-score
-  dataset.py        — PyTorch Dataset + leave-one-session-out (LOSO) split helper
-  model.py          — EEGNet (primary) and 1D U-Net (upgrade for 500+ trials)
-  train.py          — LOSO cross-validation with MLflow experiment tracking
-  realtime.py       — 4-thread pipeline: acquisition → preprocess → inference → decision
-  game.py           — pygame dodge game controlled by EEG predictions
-
-data/raw/           — raw .npz files from BrainFlow (gitignored)
-data/processed/     — preprocessed dataset.npz + standardizer.npz (gitignored)
-models/             — saved .pt checkpoints (gitignored)
-results/            — plots, confusion matrices
+├── collect_data.py   — BrainFlow session recorder with pygame arrow cues
+├── preprocess.py     — 8–30Hz bandpass, baseline correction, artifact rejection, z-score
+├── dataset.py        — PyTorch Dataset + leave-one-session-out (LOSO) split helper
+├── model.py          — EEGNet (primary) and 1D U-Net (upgrade for 500+ trials)
+├── train.py          — LOSO cross-validation with MLflow experiment tracking
+├── realtime.py       — 4-thread pipeline: acquisition → preprocess → inference → decision
+└── game.py           — pygame dodge game controlled by EEG predictions
+data/
+├── raw/              — raw .npz files from BrainFlow (gitignored)
+└── processed/        — preprocessed dataset.npz + standardizer.npz (gitignored)
+models/               — saved .pt checkpoints (gitignored)
+results/              — plots, confusion matrices
 ```
 
 ## Data collection protocol
